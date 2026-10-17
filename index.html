@@ -31,7 +31,13 @@
   button:hover{background:#000;color:#fff}
   pre{border:1px solid #000;padding:.6rem;background:#f7f7f7}
   .result{margin-top:.6rem;min-height:1.2em;white-space:pre-wrap}
-  a.link {display:inline-block;margin-top:.6rem;color:inherit;text-decoration:underline}
+  .mission-actions{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-top:.8rem}
+  .mission-actions button,.mission-actions a{
+    display:inline-block;margin:0;padding:.5rem .7rem;border:1px solid #000;background:#fff;color:#000;
+    font:inherit;text-decoration:none;cursor:pointer
+  }
+  .mission-actions button:hover,.mission-actions a:hover{background:#000;color:#fff}
+  .mission-actions a{margin-left:auto}
   .launch-overlay{
     position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:1rem;
     background:rgba(0,0,0,.88);color:#fff;text-align:center
@@ -261,6 +267,50 @@ document.getElementById('checkCodeBtn').addEventListener('click', () => {
   }
 })();
 
+const missionLocation = 'https://maps.app.goo.gl/cktn3eNTazquq3pK6';
+
+function escapeCalendarText(value) {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r\n|\n|\r/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;');
+}
+
+function downloadCalendarEvent(dateValue) {
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const startDate = new Date(Date.UTC(year, month - 1, day));
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+  const formatDate = date => date.toISOString().slice(0, 10).replace(/-/g, '');
+  const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@akte-030.local`;
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//AKTE 030//Mission//DE',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${timestamp}`,
+    `DTSTART;VALUE=DATE:${formatDate(startDate)}`,
+    `DTEND;VALUE=DATE:${formatDate(endDate)}`,
+    `SUMMARY:${escapeCalendarText('Akte 030: Mission Start')}`,
+    `LOCATION:${escapeCalendarText(missionLocation)}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ];
+  const blob = new Blob([`${lines.join('\r\n')}\r\n`], {type: 'text/calendar;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const download = document.createElement('a');
+  download.href = url;
+  download.download = `akte-030-mission-start-${dateValue}.ics`;
+  document.body.appendChild(download);
+  download.click();
+  download.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 document.getElementById('confirmDateBtn').addEventListener('click', () => {
   const chosen = document.getElementById('datePicker').value;
   const out = document.getElementById('dateResult');
@@ -270,8 +320,7 @@ document.getElementById('confirmDateBtn').addEventListener('click', () => {
     return;
   }
 
-  // Zeige Bestätigung und den klickbaren Link mit dem gewünschten Text "Missions Start"
-  // (Link öffnet die Google Maps Kurz-URL in einem neuen Tab)
+  // Zeige die Datumsbestätigung sowie den Missionslink und Kalender-Download.
   out.innerHTML = '';
   const [year, month, day] = chosen.split('-').map(Number);
   const line1 = document.createElement('div');
@@ -283,15 +332,24 @@ document.getElementById('confirmDateBtn').addEventListener('click', () => {
   label.textContent = 'Befinde dich am gewählten Samstag am Treffpunkt ein. Klicke auf den Link unten, um die Mission zu starten:';
   out.appendChild(label);
 
+  const actions = document.createElement('div');
+  actions.className = 'mission-actions';
+  const calendarButton = document.createElement('button');
+  calendarButton.type = 'button';
+  calendarButton.textContent = '📅 Zu Kalender hinzufügen';
+  calendarButton.addEventListener('click', () => downloadCalendarEvent(chosen));
+  actions.appendChild(calendarButton);
+
   const a = document.createElement('a');
-  a.href = 'https://maps.app.goo.gl/cktn3eNTazquq3pK6';
-  a.className = 'link';
+  a.href = missionLocation;
+  a.className = 'mission-start-button';
   a.textContent = 'Missions Start';
   a.addEventListener('click', event => {
     event.preventDefault();
     startLaunchAnimation(a.href);
   });
-  out.appendChild(a);
+  actions.appendChild(a);
+  out.appendChild(actions);
 });
 
 const launchOverlay = document.getElementById('launchOverlay');
