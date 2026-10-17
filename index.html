@@ -32,6 +32,32 @@
   pre{border:1px solid #000;padding:.6rem;background:#f7f7f7}
   .result{margin-top:.6rem;min-height:1.2em;white-space:pre-wrap}
   a.link {display:inline-block;margin-top:.6rem;color:inherit;text-decoration:underline}
+  .launch-overlay{
+    position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:1rem;
+    background:rgba(0,0,0,.88);color:#fff;text-align:center
+  }
+  .launch-overlay[hidden]{display:none}
+  .launch-card{width:min(100%,420px);padding:2rem 1.5rem;border:2px solid #fff;background:#000}
+  .launch-title{margin:0 0 1.5rem;letter-spacing:.12em}
+  .dynamite{font-size:4rem;line-height:1;animation:dynamite-wiggle .35s ease-in-out infinite alternate}
+  .fuse{height:3px;width:60px;margin:.5rem auto;background:#fff;transform-origin:left;animation:fuse-burn 3s linear forwards}
+  .countdown{font-size:5rem;font-weight:bold;line-height:1.1}
+  .launch-overlay.exploding .dynamite{animation:detonate .65s ease-out forwards}
+  .launch-overlay.exploding .countdown{font-size:2rem}
+  .launch-overlay.exploding .fuse{visibility:hidden}
+  .launch-skip{margin-top:1.25rem;border-color:#fff;background:#000;color:#fff}
+  .launch-skip:hover{background:#fff;color:#000}
+  @keyframes dynamite-wiggle{to{transform:rotate(5deg) scale(1.08)}}
+  @keyframes fuse-burn{to{transform:scaleX(0)}}
+  @keyframes detonate{
+    0%{transform:scale(1);opacity:1}
+    35%{transform:scale(1.8);opacity:1}
+    100%{transform:scale(2.8);opacity:0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .dynamite,.fuse{animation:none}
+    .launch-overlay.exploding .dynamite{animation:none;opacity:0}
+  }
   @media print{ .page{border:none;margin:0;padding:1.5cm} }
 </style>
 </head>
@@ -101,6 +127,17 @@
       <div id="dateResult" class="result"></div>
     </div>
 
+  </div>
+
+  <div id="launchOverlay" class="launch-overlay" role="dialog" aria-modal="true" aria-labelledby="launchTitle" hidden>
+    <div class="launch-card">
+      <h2 id="launchTitle" class="launch-title">MISSION START</h2>
+      <div class="dynamite" aria-hidden="true">🧨</div>
+      <div class="fuse" aria-hidden="true"></div>
+      <div id="launchCountdown" class="countdown" aria-live="assertive">3</div>
+      <p id="launchMessage">Zündung in...</p>
+      <button id="launchSkip" class="launch-skip" type="button">Überspringen</button>
+    </div>
   </div>
 
 <script>
@@ -249,11 +286,59 @@ document.getElementById('confirmDateBtn').addEventListener('click', () => {
 
   const a = document.createElement('a');
   a.href = 'https://maps.app.goo.gl/cktn3eNTazquq3pK6';
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
   a.className = 'link';
   a.textContent = 'Missions Start';
+  a.addEventListener('click', event => {
+    event.preventDefault();
+    startLaunchAnimation(a.href);
+  });
   out.appendChild(a);
+});
+
+const launchOverlay = document.getElementById('launchOverlay');
+const launchCountdown = document.getElementById('launchCountdown');
+const launchMessage = document.getElementById('launchMessage');
+let launchTimer;
+let pendingLaunchUrl = '';
+
+function closeLaunchAnimation(navigate = false) {
+  clearInterval(launchTimer);
+  launchOverlay.hidden = true;
+  launchOverlay.classList.remove('exploding');
+  const url = pendingLaunchUrl;
+  pendingLaunchUrl = '';
+  if (navigate && url) window.location.assign(url);
+}
+
+function startLaunchAnimation(url) {
+  clearInterval(launchTimer);
+  pendingLaunchUrl = url;
+  launchOverlay.hidden = false;
+  launchOverlay.classList.remove('exploding');
+  launchCountdown.textContent = '3';
+  launchMessage.textContent = 'Zündung in...';
+  document.getElementById('launchSkip').focus();
+
+  let count = 3;
+  const interval = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 300 : 1000;
+  launchTimer = setInterval(() => {
+    count -= 1;
+    if (count > 0) {
+      launchCountdown.textContent = String(count);
+      return;
+    }
+
+    clearInterval(launchTimer);
+    launchOverlay.classList.add('exploding');
+    launchCountdown.textContent = 'BOOM!';
+    launchMessage.textContent = 'Mission wird gestartet!';
+    launchTimer = setTimeout(() => closeLaunchAnimation(true), 900);
+  }, interval);
+}
+
+document.getElementById('launchSkip').addEventListener('click', () => closeLaunchAnimation(true));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !launchOverlay.hidden) closeLaunchAnimation();
 });
 </script>
 </body>
