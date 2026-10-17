@@ -52,8 +52,8 @@
     <div id="layer1" class="hidden">
       <h2>Schritt 2: Emoji‑Puzzle</h2>
       <p>
-        Drei Emojis sind unter vielen anderen Emojis verteilt. Klicke die drei richtigen
-        Emojis in der **richtigen Reihenfolge** (erstes → zweites → drittes).
+        Drei Emojis sind unter vielen anderen Emojis verteilt. Klicke die drei richtigen Emojis
+        in beliebiger Reihenfolge.
       </p>
 
       <div class="symbol-grid" id="grid">
@@ -74,7 +74,7 @@
         <div class="symbol" data-value="🎡">🎡</div>
       </div>
 
-      <p id="symbolHint" class="hidden">Gut gemacht — du hast drei Emojis ausgewählt. Wenn die Reihenfolge stimmt, geht es weiter.</p>
+      <p id="symbolHint" class="hidden">Gut gemacht — du hast drei Emojis ausgewählt. Wenn alle drei richtig sind, geht es weiter.</p>
     </div>
 
     <!-- LAYER 2: Codeeingabe (Quersumme des Geburtstags) -->
@@ -134,40 +134,38 @@ const grid = document.getElementById('grid');
 shuffleChildren(grid);
 
 /* ---------------------------
-   Schritt 2: Emoji-Puzzle (Reihenfolge prüfen)
-   - Richtige Reihenfolge (inhaltlich): 🥐 → 🍳 → ☕
-   - Positionen sind zufällig; Spielerin muss die drei Emojis in dieser Reihenfolge anklicken.
+   Schritt 2: Emoji-Puzzle (Elemente prüfen)
+   - Richtige Emojis: 🥐, 🍳 und ☕
+   - Die Reihenfolge der Auswahl spielt keine Rolle.
    --------------------------- */
-const correctSequence = ["🥐","🍳","☕"];
-let clickSequence = [];
+const correctSymbols = new Set(["🥐","🍳","☕"]);
+let selectedSymbols = [];
+let puzzleSolved = false;
 
 document.querySelectorAll('.symbol').forEach(el => {
   el.addEventListener('click', () => {
-    const v = el.getAttribute('data-value');
+    if (puzzleSolved || el.classList.contains('active')) return;
 
-    // Wenn bereits 3 ausgewählt, resetten wir die Auswahl (neuer Versuch)
-    if (clickSequence.length === 3) {
-      clickSequence = [];
-      document.querySelectorAll('.symbol').forEach(s => s.classList.remove('active'));
-    }
+    const value = el.getAttribute('data-value');
 
-    // Markiere visuell und füge zur Reihenfolge hinzu
+    // Markiere das Emoji und prüfe, ob alle drei richtigen ausgewählt wurden.
     el.classList.add('active');
-    clickSequence.push(v);
+    selectedSymbols.push(value);
 
-    // Wenn 3 ausgewählt, prüfe Reihenfolge exakt
-    if (clickSequence.length === 3) {
+    if (selectedSymbols.length === 3) {
       const out = document.getElementById('symbolHint');
-      if (JSON.stringify(clickSequence) === JSON.stringify(correctSequence)) {
-        out.textContent = 'Reihenfolge korrekt. Weiter zur Codeeingabe.';
+      if (new Set(selectedSymbols).size === correctSymbols.size &&
+          selectedSymbols.every(symbol => correctSymbols.has(symbol))) {
+        puzzleSolved = true;
+        out.textContent = 'Alle drei Emojis sind richtig. Weiter zur Codeeingabe.';
         out.classList.remove('hidden');
         document.getElementById('layer2').classList.remove('hidden');
       } else {
-        out.textContent = 'Reihenfolge falsch. Versuche es erneut.';
+        out.textContent = 'Nicht alle Emojis sind richtig. Versuche es erneut.';
         out.classList.remove('hidden');
         // kleine Verzögerung, dann Auswahl zurücksetzen (so Spielerin sieht Ergebnis kurz)
         setTimeout(() => {
-          clickSequence = [];
+          selectedSymbols = [];
           document.querySelectorAll('.symbol').forEach(s => s.classList.remove('active'));
           out.classList.add('hidden');
         }, 900);
@@ -218,7 +216,9 @@ document.getElementById('checkCodeBtn').addEventListener('click', () => {
   for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
     if (d.getDay() === 6) { // Samstag
       const opt = document.createElement('option');
-      opt.value = d.toISOString().split('T')[0];
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      opt.value = `${d.getFullYear()}-${month}-${day}`;
       opt.textContent = d.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'});
       picker.appendChild(opt);
     }
@@ -237,8 +237,9 @@ document.getElementById('confirmDateBtn').addEventListener('click', () => {
   // Zeige Bestätigung und den klickbaren Link mit dem gewünschten Text "Missions Start"
   // (Link öffnet die Google Maps Kurz-URL in einem neuen Tab)
   out.innerHTML = '';
+  const [year, month, day] = chosen.split('-').map(Number);
   const line1 = document.createElement('div');
-  line1.textContent = `Datum bestätigt: ${new Date(chosen).toLocaleDateString('de-DE')}`;
+  line1.textContent = `Datum bestätigt: ${new Date(year, month - 1, day).toLocaleDateString('de-DE')}`;
   out.appendChild(line1);
 
   const label = document.createElement('div');
